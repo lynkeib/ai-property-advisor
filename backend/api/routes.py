@@ -6,12 +6,10 @@ from fastapi import APIRouter, HTTPException
 from backend.models.schemas import (
     AnalysisRequest,
     AnalysisResponse,
-    GeminiRequest,
-    GeminiResponse,
     ModelsResponse,
 )
 from backend.services.financial_calculator import FinancialCalculator
-from backend.ai.analyzer import PropertyAnalyzer, GeminiAnalyzer
+from backend.ai.analyzer import GeminiAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -71,28 +69,6 @@ async def analyze_property(request: AnalysisRequest) -> AnalysisResponse:
     except Exception as e:
         logger.error(f"Analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
-
-
-@router.post("/gemini", response_model=GeminiResponse)
-async def gemini_generate(request: GeminiRequest) -> GeminiResponse:
-    """Generate a text completion using Google Gemini API."""
-    try:
-        logger.info("Generating Gemini response")
-        gemini = GeminiAnalyzer()
-        output = gemini.generate(
-            prompt=request.prompt,
-            max_tokens=request.max_tokens,
-            temperature=request.temperature,
-        )
-
-        return GeminiResponse(output=output)
-
-    except ValueError as e:
-        logger.warning(f"Gemini request validation error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Gemini generation failed: {str(e)}")
-        raise HTTPException(status_code=500, detail="Gemini generation failed. Please try again.")
 
 
 @router.get("/health")

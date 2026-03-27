@@ -1,11 +1,10 @@
-"""OpenAI integration for property analysis insights."""
+"""AI integration for property analysis insights."""
 
 import logging
 import os
 from typing import Optional
 
-import openai
-from google import generativeai as genai
+import google.generativeai as genai
 
 from backend.models.schemas import FinancialMetrics
 
@@ -71,7 +70,7 @@ class GeminiAnalyzer:
     def generate(
         self,
         prompt: str,
-        model: str = "gemini-2.0-flash",
+        model: str = "gemini-1.5-flash",
         max_tokens: int = 256,
         temperature: float = 0.0,
     ) -> str:
@@ -85,14 +84,14 @@ class GeminiAnalyzer:
                 temperature=temperature,
                 max_output_tokens=max_tokens,
             )
-            
+
             model_instance = genai.GenerativeModel(
                 model_name=model,
                 generation_config=generation_config
             )
-            
+
             response = model_instance.generate_content(prompt)
-            
+
             if response.text:
                 logger.info("Successfully generated text from Gemini")
                 return response.text
@@ -112,26 +111,26 @@ class GeminiAnalyzer:
     ) -> str:
         """
         Generate AI analysis of property investment based on calculated metrics.
-        
+
         Returns investment summary, key risks, and recommendation.
         """
-        
+
         prompt = self._build_prompt(metrics, price, rent_estimate)
-        
+
         try:
             analysis = self.generate(
                 prompt=prompt,
                 model=model,
-                max_tokens=2048,
+                max_tokens=8192,
                 temperature=0.7,
             )
             logger.info("Successfully generated AI analysis from Gemini")
             return analysis
-            
+
         except Exception as e:
             logger.error(f"Gemini API error: {str(e)}")
             raise
-    
+
     @staticmethod
     def _build_prompt(
         metrics: FinancialMetrics,
@@ -139,22 +138,22 @@ class GeminiAnalyzer:
         rent_estimate: float
     ) -> str:
         """Build the prompt for Gemini analysis."""
-        
-        return f"""Based on these real estate investment metrics, provide a comprehensive analysis of this property investment opportunity:
+
+        prompt = """Based on these real estate investment metrics, provide a comprehensive analysis of this property investment opportunity:
 
 Property Details:
 - Property Price: ${price:,.0f}
-- Monthly Mortgage Payment: ${metrics.monthly_mortgage_payment:,.2f}
-- Monthly Property Tax: ${metrics.monthly_property_tax:,.2f}
-- Monthly HOA/Insurance: ${metrics.monthly_total_cost - metrics.monthly_mortgage_payment - metrics.monthly_property_tax:,.2f}
-- Total Monthly Ownership Cost: ${metrics.monthly_total_cost:,.2f}
+- Monthly Mortgage Payment: ${monthly_mortgage:,.2f}
+- Monthly Property Tax: ${monthly_tax:,.2f}
+- Monthly HOA/Insurance: ${monthly_hoa:,.2f}
+- Total Monthly Ownership Cost: ${monthly_total:,.2f}
 - Estimated Monthly Rent: ${rent_estimate:,.2f}
 
 10-Year Financial Projections:
-- Total Cost of Buying: ${metrics.total_cost_10_years:,.2f}
-- Total Cost of Renting: ${metrics.total_rent_10_years:,.2f}
-- Buy vs Rent Savings/Loss: ${metrics.buy_vs_rent_delta:,.2f}
-{"- Break-even Period: " + f"{metrics.break_even_months:.1f} months" if metrics.break_even_months else "- Break-even: Rent appears cheaper long-term"}
+- Total Cost of Buying: ${total_buy:,.2f}
+- Total Cost of Renting: ${total_rent:,.2f}
+- Buy vs Rent Savings/Loss: ${buy_rent_delta:,.2f}
+{break_even_info}
 
 Please provide a detailed analysis covering:
 
@@ -165,82 +164,19 @@ Please provide a detailed analysis covering:
 5. **Tax Implications**: Potential tax benefits and deductions
 6. **Recommendation**: Clear buy/rent/hold recommendation with reasoning
 
-Provide specific numbers, calculations, and practical insights. Be thorough but practical."""
+IMPORTANT: Provide a COMPLETE and COMPREHENSIVE analysis. Do not truncate your response - ensure all sections are fully detailed with specific numbers and complete explanations. Take your time to provide thorough insights."""
 
+        break_even_info = f"- Break-even Period: {metrics.break_even_months:.1f} months" if metrics.break_even_months else "- Break-even: Rent appears cheaper long-term"
 
-class PropertyAnalyzer:
-    """Uses OpenAI API to generate AI-powered investment insights."""
-    
-    def __init__(self, api_key: Optional[str] = None):
-        """Initialize with OpenAI API key from parameter or environment."""
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set")
-        openai.api_key = self.api_key
-    
-    def analyze(
-        self,
-        metrics: FinancialMetrics,
-        price: float,
-        rent_estimate: float
-    ) -> str:
-        """
-        Generate AI analysis of property investment based on calculated metrics.
-        
-        Returns investment summary, key risks, and recommendation.
-        """
-        
-        prompt = self._build_prompt(metrics, price, rent_estimate)
-        
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert real estate investment analyst. Provide concise, actionable insights."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.7,
-                max_tokens=500
-            )
-            
-            analysis = response["choices"][0]["message"]["content"]
-            logger.info("Successfully generated AI analysis")
-            return analysis
-            
-        except openai.error.OpenAIError as e:
-            logger.error(f"OpenAI API error: {str(e)}")
-            raise
-    
-    @staticmethod
-    def _build_prompt(
-        metrics: FinancialMetrics,
-        price: float,
-        rent_estimate: float
-    ) -> str:
-        """Build the prompt for OpenAI analysis."""
-        
-        return f"""Based on these real estate investment metrics, provide a brief analysis:
-
-Property Price: ${price:,.0f}
-Monthly Mortgage: ${metrics.monthly_mortgage_payment:,.2f}
-Monthly Property Tax: ${metrics.monthly_property_tax:,.2f}
-Total Monthly Cost: ${metrics.monthly_total_cost:,.2f}
-Estimated Monthly Rent: ${rent_estimate:,.2f}
-
-10-Year Projections:
-- Buy Total Cost: ${metrics.total_cost_10_years:,.2f}
-- Rent Total Cost: ${metrics.total_rent_10_years:,.2f}
-- Buy vs Rent Delta: ${metrics.buy_vs_rent_delta:,.2f}
-
-Please provide:
-1. Investment Summary (1-2 sentences)
-2. Key Risks (2-3 bullet points)
-3. Recommendation (buy/rent/neutral)
-
-Be concise and practical."""
+        return prompt.format(
+            price=price,
+            monthly_mortgage=metrics.monthly_mortgage_payment,
+            monthly_tax=metrics.monthly_property_tax,
+            monthly_hoa=metrics.monthly_total_cost - metrics.monthly_mortgage_payment - metrics.monthly_property_tax,
+            monthly_total=metrics.monthly_total_cost,
+            rent_estimate=rent_estimate,
+            total_buy=metrics.total_cost_10_years,
+            total_rent=metrics.total_rent_10_years,
+            buy_rent_delta=metrics.buy_vs_rent_delta,
+            break_even_info=break_even_info
+        )
