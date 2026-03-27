@@ -5,7 +5,7 @@ Get Property Copilot running in 5 minutes.
 ## Prerequisites
 
 - Python 3.11+
-- OpenAI API key (free tier available)
+- Google Gemini API key (free tier available)
 
 ## Setup
 
@@ -26,13 +26,13 @@ pip install -r requirements.txt
 # Create environment file
 cp .env.example .env
 
-# Edit .env and add your OpenAI API key
-# Get one free at: https://platform.openai.com/api-keys
+# Edit .env and add your Gemini API key
+# Get one free at: https://aistudio.google.com/app/apikey
 ```
 
 Example `.env`:
 ```
-OPENAI_API_KEY=sk-your-actual-key-here
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
 
 ### 3. Start Backend (1 min)
@@ -117,9 +117,9 @@ curl -X POST http://localhost:8000/api/analyze \
 - Check backend is running
 - Check CORS is enabled (it is by default)
 
-**OpenAI API error?**
+**Gemini API error?**
 - Verify API key in `.env`
-- Check: https://status.openai.com
+- Check: https://status.generativeai.google
 
 ## Next Steps
 
