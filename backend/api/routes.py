@@ -11,7 +11,7 @@ from backend.models.schemas import (
     ModelsResponse,
 )
 from backend.services.financial_calculator import FinancialCalculator
-from backend.ai.analyzer import PropertyAnalyzer, GeminiAnalyzer
+from backend.ai.analyzer import GeminiAnalyzer
 
 logger = logging.getLogger(__name__)
 
