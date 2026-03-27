@@ -8,7 +8,7 @@ Property Copilot combines **deterministic financial calculations** with **AI-gen
 
 - **Backend**: Python 3.11, FastAPI, Pydantic
 - **Frontend**: Streamlit
-- **AI**: OpenAI API (gpt-3.5-turbo)
+- **AI**: Google Gemini API (gemini-2.0-flash)
 
 ## Features
 
@@ -39,7 +39,7 @@ property-copilot/
 │   │   └── financial_calculator.py  # Deterministic math
 │   ├── ai/
 │   │   ├── __init__.py
-│   │   └── analyzer.py         # OpenAI integration
+│   │   └── analyzer.py         # Gemini integration
 │   ├── models/
 │   │   ├── __init__.py
 │   │   └── schemas.py          # Pydantic models
@@ -71,13 +71,13 @@ Create a `.env` file in the project root:
 cp .env.example .env
 ```
 
-Add your OpenAI API key:
+Add your Gemini API key:
 
 ```
-OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
 
-Get your API key at: https://platform.openai.com/api-keys
+Get your API key at: https://aistudio.google.com/app/apikey
 
 ### 3. Run Backend
 
@@ -163,7 +163,7 @@ curl -X POST http://localhost:8000/api/analyze \
 ## Notes
 
 - Financial calculations are 100% deterministic (no AI)
-- AI analysis uses OpenAI gpt-3.5-turbo API
+- AI analysis uses Google Gemini gemini-2.0-flash API
 - CORS enabled for local frontend development
 - All monetary values in USD
 - Interest rates as percentages (e.g., 6.5 for 6.5%)

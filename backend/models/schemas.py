@@ -13,6 +13,7 @@ class AnalysisRequest(BaseModel):
     property_tax_rate: float = Field(default=0.01, ge=0, le=0.1, description="Annual property tax rate")
     insurance: float = Field(default=0, ge=0, description="Monthly insurance in USD")
     rent_estimate: float = Field(..., gt=0, description="Estimated monthly rent in USD")
+    model: str = Field(default="gemini-1.5-flash", description="AI model to use for analysis")
     
     class Config:
         json_schema_extra = {
@@ -23,7 +24,8 @@ class AnalysisRequest(BaseModel):
                 "hoa": 250,
                 "property_tax_rate": 0.015,
                 "insurance": 150,
-                "rent_estimate": 2500
+                "rent_estimate": 2500,
+                "model": "gemini-1.5-flash"
             }
         }
 
@@ -58,3 +60,9 @@ class GeminiRequest(BaseModel):
 class GeminiResponse(BaseModel):
     """Schema for Gemini text generation response."""
     output: str
+
+
+class ModelsResponse(BaseModel):
+    """Schema for available models response."""
+    generate_content_models: list[str]
+    embed_content_models: list[str]

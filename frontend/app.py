@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Backend API configuration
 BACKEND_URL = "http://localhost:8000"
 API_ENDPOINT = f"{BACKEND_URL}/api/analyze"
+MODELS_ENDPOINT = f"{BACKEND_URL}/api/models"
 
 # Styling
 st.markdown("""
@@ -75,6 +76,20 @@ def call_backend_api(data: dict) -> Optional[dict]:
         return None
     except requests.exceptions.RequestException as e:
         st.error(f"❌ API error: {str(e)}")
+        return None
+
+
+def fetch_available_models() -> Optional[dict]:
+    """Fetch available AI models from backend."""
+    try:
+        response = requests.get(MODELS_ENDPOINT, timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.warning(f"⚠️ Could not fetch models (status {response.status_code})")
+            return None
+    except Exception as e:
+        st.warning(f"⚠️ Could not fetch models: {str(e)}")
         return None
 
 
@@ -137,6 +152,15 @@ def main():
     st.title("🏡 Property Copilot")
     st.markdown("AI-powered real estate investment analysis")
     
+    # Fetch available models
+    models_data = fetch_available_models()
+    available_models = []
+    if models_data and 'generate_content_models' in models_data:
+        available_models = models_data['generate_content_models']
+    else:
+        # Fallback to default models if API fails
+        available_models = ["gemini-1.5-flash", "gemini-1.5-pro"]
+    
     # Sidebar for inputs
     # Initialize session state to avoid widget key-value conflict warnings
     if "price_input" not in st.session_state:
@@ -183,9 +207,8 @@ def main():
         st.markdown("---")
         st.subheader("Monthly Costs")
         
-        hoa_input = st.text_input(
+        st.text_input(
             "HOA Fees ($)",
-            value=format_currency(250.0),
             key="hoa_input",
             on_change=refresh_currency_field,
             args=("hoa_input", 250.0),
@@ -202,9 +225,8 @@ def main():
         )
         property_tax_rate = property_tax_rate_pct / 100
         
-        insurance_input = st.text_input(
+        st.text_input(
             "Home Insurance ($)",
-            value=format_currency(150.0),
             key="insurance_input",
             on_change=refresh_currency_field,
             args=("insurance_input", 150.0),
@@ -213,14 +235,23 @@ def main():
         
         st.markdown("---")
         
-        rent_estimate_input = st.text_input(
+        st.text_input(
             "Estimated Monthly Rent ($)",
-            value=format_currency(2500.0),
             key="rent_estimate_input",
             on_change=refresh_currency_field,
             args=("rent_estimate_input", 2500.0),
         )
         rent_estimate = parse_currency_input(st.session_state.rent_estimate_input, default=2500.0)
+        
+        st.markdown("---")
+        st.subheader("AI Analysis Settings")
+        
+        selected_model = st.selectbox(
+            "AI Model",
+            options=available_models,
+            index=0 if available_models else 0,
+            help="Choose the AI model for property analysis"
+        )
 
     
     # Main content area
@@ -245,7 +276,8 @@ def main():
                         "hoa": hoa,
                         "property_tax_rate": property_tax_rate,
                         "insurance": insurance,
-                        "rent_estimate": rent_estimate
+                        "rent_estimate": rent_estimate,
+                        "model": selected_model
                     }
                     
                     result = call_backend_api(request_data)

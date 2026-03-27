@@ -8,6 +8,7 @@ from backend.models.schemas import (
     AnalysisResponse,
     GeminiRequest,
     GeminiResponse,
+    ModelsResponse,
 )
 from backend.services.financial_calculator import FinancialCalculator
 from backend.ai.analyzer import PropertyAnalyzer, GeminiAnalyzer
@@ -50,12 +51,13 @@ async def analyze_property(request: AnalysisRequest) -> AnalysisResponse:
         )
         
         # Generate AI analysis
-        logger.info("Requesting AI analysis from OpenAI")
-        analyzer = PropertyAnalyzer()
+        logger.info("Requesting AI analysis from Gemini")
+        analyzer = GeminiAnalyzer()
         ai_analysis = analyzer.analyze(
             metrics=metrics,
             price=request.price,
-            rent_estimate=request.rent_estimate
+            rent_estimate=request.rent_estimate,
+            model=request.model
         )
         
         return AnalysisResponse(
@@ -97,3 +99,21 @@ async def gemini_generate(request: GeminiRequest) -> GeminiResponse:
 async def health_check() -> dict:
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+@router.get("/models", response_model=ModelsResponse)
+async def list_available_models() -> ModelsResponse:
+    """List available Google Generative AI models and their capabilities."""
+    try:
+        logger.info("Fetching available models from Google Generative AI...")
+        analyzer = GeminiAnalyzer()
+        models_data = analyzer.list_available_models()
+
+        return ModelsResponse(
+            generate_content_models=models_data['generate_content_models'],
+            embed_content_models=models_data['embed_content_models']
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to list models: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to list models. Please try again.")
