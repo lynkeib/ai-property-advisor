@@ -46,3 +46,15 @@ class AnalysisResponse(BaseModel):
     
     metrics: FinancialMetrics
     ai_analysis: str
+
+
+class GeminiRequest(BaseModel):
+    """Schema for Gemini text generation requests."""
+    prompt: str = Field(..., min_length=1, description="Prompt for Gemini")
+    max_tokens: int = Field(256, gt=0, le=2048, description="Maximum tokens to generate")
+    temperature: float = Field(0.0, ge=0.0, le=1.0, description="Sampling temperature")
+
+
+class GeminiResponse(BaseModel):
+    """Schema for Gemini text generation response."""
+    output: str

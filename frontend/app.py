@@ -59,7 +59,15 @@ def call_backend_api(data: dict) -> Optional[dict]:
     
     try:
         response = requests.post(API_ENDPOINT, json=data, timeout=30)
-        response.raise_for_status()
+        if response.status_code != 200:
+            detail = ""
+            try:
+                detail = response.json()
+            except Exception:
+                detail = response.text
+            st.error(f"❌ API error {response.status_code}: {detail}")
+            st.write(f"Request body: {data}")
+            return None
         return response.json()
     except requests.exceptions.ConnectionError:
         st.error(f"❌ Cannot connect to backend at {BACKEND_URL}")
@@ -70,21 +78,50 @@ def call_backend_api(data: dict) -> Optional[dict]:
         return None
 
 
+def format_currency(amount: float) -> str:
+    """Formats a float as a USD currency string."""
+    return f"${amount:,.2f}"
+
+
+def parse_currency_input(value: str, default: float = 0.0) -> float:
+    """Parse a currency string into a float.
+
+    Accepts values like 500000, 500,000, $500,000, 500000.00.
+    """
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    try:
+        sanitized = str(value).strip().replace("$", "").replace(",", "")
+        if sanitized == "":
+            return default
+        return float(sanitized)
+    except ValueError:
+        return default
+
+
+def refresh_currency_field(field_name: str, default: float = 0.0) -> None:
+    """Parse the raw text input and update with formatted currency text."""
+    raw_value = st.session_state.get(field_name, "")
+    parsed = parse_currency_input(raw_value, default=default)
+    st.session_state[field_name] = format_currency(parsed)
+
+
 def display_metrics(metrics: dict) -> None:
     """Display financial metrics in a formatted way."""
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.metric("Loan Amount", f"${metrics['loan_amount']:,.2f}")
-        st.metric("Monthly Mortgage", f"${metrics['monthly_mortgage_payment']:,.2f}")
-        st.metric("Monthly Property Tax", f"${metrics['monthly_property_tax']:,.2f}")
-        st.metric("Total Monthly Cost", f"${metrics['monthly_total_cost']:,.2f}")
+        st.metric("Loan Amount", format_currency(metrics['loan_amount']))
+        st.metric("Monthly Mortgage", format_currency(metrics['monthly_mortgage_payment']))
+        st.metric("Monthly Property Tax", format_currency(metrics['monthly_property_tax']))
+        st.metric("Total Monthly Cost", format_currency(metrics['monthly_total_cost']))
     
     with col2:
-        st.metric("10-Year Buy Cost", f"${metrics['total_cost_10_years']:,.2f}")
-        st.metric("10-Year Rent Cost", f"${metrics['total_rent_10_years']:,.2f}")
-        st.metric("Buy vs Rent (10yr)", f"${metrics['buy_vs_rent_delta']:,.2f}")
+        st.metric("10-Year Buy Cost", format_currency(metrics['total_cost_10_years']))
+        st.metric("10-Year Rent Cost", format_currency(metrics['total_rent_10_years']))
+        st.metric("Buy vs Rent (10yr)", format_currency(metrics['buy_vs_rent_delta']))
         
         break_even = metrics.get('break_even_months')
         if break_even:
@@ -101,65 +138,90 @@ def main():
     st.markdown("AI-powered real estate investment analysis")
     
     # Sidebar for inputs
+    # Initialize session state to avoid widget key-value conflict warnings
+    if "price_input" not in st.session_state:
+        st.session_state.price_input = format_currency(500000.0)
+    if "down_payment_input" not in st.session_state:
+        st.session_state.down_payment_input = format_currency(100000.0)
+    if "hoa_input" not in st.session_state:
+        st.session_state.hoa_input = format_currency(250.0)
+    if "insurance_input" not in st.session_state:
+        st.session_state.insurance_input = format_currency(150.0)
+    if "rent_estimate_input" not in st.session_state:
+        st.session_state.rent_estimate_input = format_currency(2500.0)
+
     with st.sidebar:
         st.header("Property Details")
         
-        # Basic property info
-        price = st.number_input(
+        # Basic property info with formatted dollar text input
+        st.text_input(
             "Property Price ($)",
-            min_value=1000.0,
-            value=500000.0,
-            step=10000.0
+            key="price_input",
+            on_change=refresh_currency_field,
+            args=("price_input", 500000.0),
         )
+        price = parse_currency_input(st.session_state.price_input, default=500000.0)
         
-        down_payment = st.number_input(
+        st.text_input(
             "Down Payment ($)",
-            min_value=0.0,
-            value=100000.0,
-            step=10000.0
+            key="down_payment_input",
+            on_change=refresh_currency_field,
+            args=("down_payment_input", 100000.0),
         )
+        down_payment = parse_currency_input(st.session_state.down_payment_input, default=100000.0)
         
-        interest_rate = st.slider(
+        # Interest rate numeric input (as requested)
+        interest_rate = st.number_input(
             "Interest Rate (%)",
             min_value=0.0,
             max_value=15.0,
             value=6.5,
-            step=0.1
+            step=0.01,
+            format="%.2f"
         )
         
         st.markdown("---")
         st.subheader("Monthly Costs")
         
-        hoa = st.number_input(
+        hoa_input = st.text_input(
             "HOA Fees ($)",
-            min_value=0.0,
-            value=250.0,
-            step=50.0
+            value=format_currency(250.0),
+            key="hoa_input",
+            on_change=refresh_currency_field,
+            args=("hoa_input", 250.0),
         )
+        hoa = parse_currency_input(st.session_state.hoa_input, default=250.0)
         
-        property_tax_rate = st.slider(
+        property_tax_rate_pct = st.number_input(
             "Property Tax Rate (annual %)",
             min_value=0.0,
             max_value=10.0,
             value=1.5,
-            step=0.1
-        ) / 100
-        
-        insurance = st.number_input(
-            "Home Insurance ($)",
-            min_value=0.0,
-            value=150.0,
-            step=10.0
+            step=0.01,
+            format="%.2f"
         )
+        property_tax_rate = property_tax_rate_pct / 100
+        
+        insurance_input = st.text_input(
+            "Home Insurance ($)",
+            value=format_currency(150.0),
+            key="insurance_input",
+            on_change=refresh_currency_field,
+            args=("insurance_input", 150.0),
+        )
+        insurance = parse_currency_input(st.session_state.insurance_input, default=150.0)
         
         st.markdown("---")
         
-        rent_estimate = st.number_input(
+        rent_estimate_input = st.text_input(
             "Estimated Monthly Rent ($)",
-            min_value=100.0,
-            value=2500.0,
-            step=100.0
+            value=format_currency(2500.0),
+            key="rent_estimate_input",
+            on_change=refresh_currency_field,
+            args=("rent_estimate_input", 2500.0),
         )
+        rent_estimate = parse_currency_input(st.session_state.rent_estimate_input, default=2500.0)
+
     
     # Main content area
     st.markdown("---")

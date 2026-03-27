@@ -11,6 +11,50 @@ from backend.models.schemas import FinancialMetrics
 logger = logging.getLogger(__name__)
 
 
+class GeminiAnalyzer:
+    """Uses Google Gemini via google-genai SDK for text generation."""
+
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        if not self.api_key:
+            raise ValueError("GEMINI_API_KEY environment variable not set")
+
+        try:
+            from google_genai import Client
+        except ImportError as e:
+            logger.error("google-genai package is required for Gemini integration")
+            raise
+
+        self.client = Client(api_key=self.api_key)
+
+    def generate(
+        self,
+        prompt: str,
+        model: str = "gemini-2.0-flash",
+        max_tokens: int = 256,
+        temperature: float = 0.0,
+    ) -> str:
+        """Generate text from Gemini model."""
+        if not prompt.strip():
+            raise ValueError("Prompt must not be empty")
+
+        try:
+            response = self.client.generate_text(
+                model=model,
+                prompt=prompt,
+                max_output_tokens=max_tokens,
+                temperature=temperature,
+            )
+
+            output = response.text if hasattr(response, "text") else str(response)
+            logger.info("Successfully generated text from Gemini")
+            return output
+
+        except Exception as e:
+            logger.error(f"Gemini API error: {e}")
+            raise
+
+
 class PropertyAnalyzer:
     """Uses OpenAI API to generate AI-powered investment insights."""
     
