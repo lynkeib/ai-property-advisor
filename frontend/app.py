@@ -2,6 +2,7 @@
 
 import logging
 import calendar
+import re
 from datetime import date
 import pandas as pd
 import requests
@@ -68,6 +69,7 @@ def validate_inputs(
     price: float,
     down_payment: float,
     interest_rate: float,
+    zip_code: str,
 ) -> Optional[str]:
     """Validate user inputs and return error message if invalid."""
     
@@ -77,6 +79,8 @@ def validate_inputs(
         return "Down payment must be between 0 and property price"
     if interest_rate < 0 or interest_rate > 15:
         return "Interest rate must be between 0% and 15%"
+    if not re.fullmatch(r"\d{5}(?:-\d{4})?", zip_code.strip()):
+        return "ZIP code must be 5 digits or ZIP+4 (e.g., 94110 or 94110-1234)"
     
     return None
 
@@ -432,6 +436,8 @@ def main():
         st.session_state.hoa_input = format_currency(250.0)
     if "insurance_input" not in st.session_state:
         st.session_state.insurance_input = format_currency(150.0)
+    if "zip_code_input" not in st.session_state:
+        st.session_state.zip_code_input = "94110"
 
     with st.sidebar:
         st.header("Property Details")
@@ -452,6 +458,12 @@ def main():
             args=("down_payment_input", 100000.0),
         )
         down_payment = parse_currency_input(st.session_state.down_payment_input, default=100000.0)
+
+        zip_code = st.text_input(
+            "ZIP Code",
+            key="zip_code_input",
+            help="Used in AI analysis context",
+        ).strip()
         
         # Interest rate numeric input (as requested)
         interest_rate = st.number_input(
@@ -501,13 +513,29 @@ def main():
             index=0 if available_models else 0,
             help="Choose the AI model for property analysis"
         )
+        selected_analysis_language = st.selectbox(
+            "Analysis Language",
+            options=[
+                "English",
+                "Spanish",
+                "Chinese (Simplified)",
+                "Chinese (Traditional)",
+                "Japanese",
+                "Korean",
+                "French",
+                "German",
+                "Portuguese",
+            ],
+            index=0,
+            help="Choose the language for AI analysis output",
+        )
 
     
     # Main content area
     st.markdown("---")
     
     # Validate and analyze
-    error = validate_inputs(price, down_payment, interest_rate)
+    error = validate_inputs(price, down_payment, interest_rate, zip_code)
 
     if error:
         st.error(f"⚠️ {error}")
@@ -519,7 +547,9 @@ def main():
             "hoa": hoa,
             "property_tax_rate": property_tax_rate,
             "insurance": insurance,
-            "model": selected_model
+            "zip_code": zip_code,
+            "model": selected_model,
+            "analysis_language": selected_analysis_language,
         }
 
         # Show financial metrics immediately (no AI needed)
