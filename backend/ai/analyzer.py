@@ -106,6 +106,7 @@ class GeminiAnalyzer:
         self,
         metrics: FinancialMetrics,
         price: float,
+        zip_code: str,
         model: str = "gemini-1.5-flash"
     ) -> str:
         """
@@ -114,7 +115,7 @@ class GeminiAnalyzer:
         Returns investment summary, key risks, and recommendation.
         """
 
-        prompt = self._build_prompt(metrics, price)
+        prompt = self._build_prompt(metrics, price, zip_code)
 
         try:
             analysis = self.generate(
@@ -134,6 +135,7 @@ class GeminiAnalyzer:
     def _build_prompt(
         metrics: FinancialMetrics,
         price: float,
+        zip_code: str,
     ) -> str:
         """Build the prompt for Gemini analysis."""
 
@@ -141,6 +143,7 @@ class GeminiAnalyzer:
 
 Property Details:
 - Property Price: ${price:,.0f}
+- ZIP Code: {zip_code}
 - Monthly Mortgage Payment: ${monthly_mortgage:,.2f}
 - Monthly Property Tax: ${monthly_tax:,.2f}
 - Monthly HOA/Insurance: ${monthly_hoa:,.2f}
@@ -164,6 +167,7 @@ IMPORTANT: Provide a COMPLETE and COMPREHENSIVE analysis. Do not truncate your r
 
         return prompt.format(
             price=price,
+            zip_code=zip_code,
             monthly_mortgage=metrics.monthly_mortgage_payment,
             monthly_tax=metrics.monthly_property_tax,
             monthly_hoa=metrics.monthly_total_cost - metrics.monthly_mortgage_payment - metrics.monthly_property_tax,

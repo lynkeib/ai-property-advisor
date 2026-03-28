@@ -12,6 +12,11 @@ class AnalysisRequest(BaseModel):
     hoa: float = Field(default=0, ge=0, description="Monthly HOA fees in USD")
     property_tax_rate: float = Field(default=0.01, ge=0, le=0.1, description="Annual property tax rate")
     insurance: float = Field(default=0, ge=0, description="Monthly insurance in USD")
+    zip_code: str = Field(
+        ...,
+        pattern=r"^\d{5}(?:-\d{4})?$",
+        description="Property ZIP code (5-digit or ZIP+4)",
+    )
     model: str = Field(default="gemini-1.5-flash", description="AI model to use for analysis")
     
     class Config:
@@ -23,6 +28,7 @@ class AnalysisRequest(BaseModel):
                 "hoa": 250,
                 "property_tax_rate": 0.015,
                 "insurance": 150,
+                "zip_code": "94110",
                 "model": "gemini-1.5-flash"
             }
         }

@@ -54,6 +54,7 @@ async def analyze_property(request: AnalysisRequest) -> AnalysisResponse:
         ai_analysis = analyzer.analyze(
             metrics=metrics,
             price=request.price,
+            zip_code=request.zip_code,
             model=request.model
         )
         
