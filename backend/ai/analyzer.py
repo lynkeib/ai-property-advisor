@@ -107,7 +107,8 @@ class GeminiAnalyzer:
         metrics: FinancialMetrics,
         price: float,
         zip_code: str,
-        model: str = "gemini-1.5-flash"
+        model: str = "gemini-1.5-flash",
+        analysis_language: str = "English",
     ) -> str:
         """
         Generate AI analysis of property investment based on calculated metrics.
@@ -115,7 +116,7 @@ class GeminiAnalyzer:
         Returns investment summary, key risks, and recommendation.
         """
 
-        prompt = self._build_prompt(metrics, price, zip_code)
+        prompt = self._build_prompt(metrics, price, zip_code, analysis_language)
 
         try:
             analysis = self.generate(
@@ -136,6 +137,7 @@ class GeminiAnalyzer:
         metrics: FinancialMetrics,
         price: float,
         zip_code: str,
+        analysis_language: str,
     ) -> str:
         """Build the prompt for Gemini analysis."""
 
@@ -144,6 +146,7 @@ class GeminiAnalyzer:
 Property Details:
 - Property Price: ${price:,.0f}
 - ZIP Code: {zip_code}
+- Preferred Analysis Language: {analysis_language}
 - Monthly Mortgage Payment: ${monthly_mortgage:,.2f}
 - Monthly Property Tax: ${monthly_tax:,.2f}
 - Monthly HOA/Insurance: ${monthly_hoa:,.2f}
@@ -163,11 +166,12 @@ Please provide a detailed analysis covering:
 5. **Tax Implications**: Potential tax benefits and deductions
 6. **Recommendation**: Clear investment recommendation with reasoning
 
-IMPORTANT: Provide a COMPLETE and COMPREHENSIVE analysis. Do not truncate your response - ensure all sections are fully detailed with specific numbers and complete explanations. Take your time to provide thorough insights."""
+IMPORTANT: Provide a COMPLETE and COMPREHENSIVE analysis. Do not truncate your response - ensure all sections are fully detailed with specific numbers and complete explanations. Take your time to provide thorough insights. Write the entire response in {analysis_language}."""
 
         return prompt.format(
             price=price,
             zip_code=zip_code,
+            analysis_language=analysis_language,
             monthly_mortgage=metrics.monthly_mortgage_payment,
             monthly_tax=metrics.monthly_property_tax,
             monthly_hoa=metrics.monthly_total_cost - metrics.monthly_mortgage_payment - metrics.monthly_property_tax,

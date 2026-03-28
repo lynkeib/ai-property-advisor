@@ -513,6 +513,22 @@ def main():
             index=0 if available_models else 0,
             help="Choose the AI model for property analysis"
         )
+        selected_analysis_language = st.selectbox(
+            "Analysis Language",
+            options=[
+                "English",
+                "Spanish",
+                "Chinese (Simplified)",
+                "Chinese (Traditional)",
+                "Japanese",
+                "Korean",
+                "French",
+                "German",
+                "Portuguese",
+            ],
+            index=0,
+            help="Choose the language for AI analysis output",
+        )
 
     
     # Main content area
@@ -532,7 +548,8 @@ def main():
             "property_tax_rate": property_tax_rate,
             "insurance": insurance,
             "zip_code": zip_code,
-            "model": selected_model
+            "model": selected_model,
+            "analysis_language": selected_analysis_language,
         }
 
         # Show financial metrics immediately (no AI needed)

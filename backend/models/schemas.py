@@ -18,6 +18,7 @@ class AnalysisRequest(BaseModel):
         description="Property ZIP code (5-digit or ZIP+4)",
     )
     model: str = Field(default="gemini-1.5-flash", description="AI model to use for analysis")
+    analysis_language: str = Field(default="English", description="Language for AI analysis output")
     
     class Config:
         json_schema_extra = {
@@ -29,7 +30,8 @@ class AnalysisRequest(BaseModel):
                 "property_tax_rate": 0.015,
                 "insurance": 150,
                 "zip_code": "94110",
-                "model": "gemini-1.5-flash"
+                "model": "gemini-1.5-flash",
+                "analysis_language": "English"
             }
         }
 
