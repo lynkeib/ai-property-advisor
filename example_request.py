@@ -15,7 +15,6 @@ example_request = {
     "hoa": 250,
     "property_tax_rate": 0.015,
     "insurance": 150,
-    "rent_estimate": 2500
 }
 
 print("=" * 60)
@@ -46,9 +45,9 @@ try:
     print(f"Monthly Mortgage:      ${metrics['monthly_mortgage_payment']:>12,.2f}")
     print(f"Monthly Property Tax:  ${metrics['monthly_property_tax']:>12,.2f}")
     print(f"Total Monthly Cost:    ${metrics['monthly_total_cost']:>12,.2f}")
-    print(f"10-Year Buy Cost:      ${metrics['total_cost_10_years']:>12,.2f}")
-    print(f"10-Year Rent Cost:     ${metrics['total_rent_10_years']:>12,.2f}")
-    print(f"Buy vs Rent (10yr):    ${metrics['buy_vs_rent_delta']:>12,.2f}")
+    print(f"30-Year Principal:     ${metrics['total_principal_30_years']:>12,.2f}")
+    print(f"30-Year Interest:      ${metrics['total_interest_30_years']:>12,.2f}")
+    print(f"30-Year Cost (excl P): ${metrics['total_cost_30_years_excluding_principal']:>12,.2f}")
     print("=" * 60)
     print("\nAI Analysis:")
     print("-" * 60)

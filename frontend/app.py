@@ -40,7 +40,6 @@ def validate_inputs(
     price: float,
     down_payment: float,
     interest_rate: float,
-    rent_estimate: float
 ) -> Optional[str]:
     """Validate user inputs and return error message if invalid."""
     
@@ -50,8 +49,6 @@ def validate_inputs(
         return "Down payment must be between 0 and property price"
     if interest_rate < 0 or interest_rate > 15:
         return "Interest rate must be between 0% and 15%"
-    if rent_estimate <= 0:
-        return "Rent estimate must be greater than 0"
     
     return None
 
@@ -157,17 +154,12 @@ def display_metrics(metrics: dict) -> None:
         st.metric("Total Monthly Cost", format_currency(metrics['monthly_total_cost']))
     
     with col2:
-        st.metric("10-Year Cost (excl. principal)", format_currency(metrics['total_cost_10_years']))
-        st.metric("10-Year Rent Cost", format_currency(metrics['total_rent_10_years']))
-        st.metric("Buy vs Rent (10yr)", format_currency(metrics['buy_vs_rent_delta']))
-        st.metric("Total Principal Paid (10yr)", format_currency(metrics.get('total_principal_paid_10_years', 0)))
-        st.metric("Total Interest Paid (10yr)", format_currency(metrics.get('total_interest_paid_10_years', 0)))
-        
-        break_even = metrics.get('break_even_months')
-        if break_even:
-            st.metric("Break-Even Months", f"{break_even:.1f}")
-        else:
-            st.metric("Break-Even", "Rent is cheaper")
+        st.metric("30-Year Principal", format_currency(metrics['total_principal_30_years']))
+        st.metric("30-Year Interest", format_currency(metrics['total_interest_30_years']))
+        st.metric(
+            "30-Year Total Cost (excl. principal)",
+            format_currency(metrics['total_cost_30_years_excluding_principal'])
+        )
 
 
 def main():
@@ -196,8 +188,6 @@ def main():
         st.session_state.hoa_input = format_currency(250.0)
     if "insurance_input" not in st.session_state:
         st.session_state.insurance_input = format_currency(150.0)
-    if "rent_estimate_input" not in st.session_state:
-        st.session_state.rent_estimate_input = format_currency(2500.0)
 
     with st.sidebar:
         st.header("Property Details")
@@ -259,16 +249,6 @@ def main():
         insurance = parse_currency_input(st.session_state.insurance_input, default=150.0)
         
         st.markdown("---")
-        
-        st.text_input(
-            "Estimated Monthly Rent ($)",
-            key="rent_estimate_input",
-            on_change=refresh_currency_field,
-            args=("rent_estimate_input", 2500.0),
-        )
-        rent_estimate = parse_currency_input(st.session_state.rent_estimate_input, default=2500.0)
-        
-        st.markdown("---")
         st.subheader("AI Analysis Settings")
         
         selected_model = st.selectbox(
@@ -283,7 +263,7 @@ def main():
     st.markdown("---")
     
     # Validate and analyze
-    error = validate_inputs(price, down_payment, interest_rate, rent_estimate)
+    error = validate_inputs(price, down_payment, interest_rate)
 
     if error:
         st.error(f"⚠️ {error}")
@@ -295,7 +275,6 @@ def main():
             "hoa": hoa,
             "property_tax_rate": property_tax_rate,
             "insurance": insurance,
-            "rent_estimate": rent_estimate,
             "model": selected_model
         }
 
@@ -313,11 +292,11 @@ def main():
         col_analyze, col_clear = st.columns([4, 1])
 
         with col_analyze:
-            if st.button("📊 Analyze Property", type="primary", use_container_width=True):
-                with st.spinner("Analyzing property..."):
+            if st.button("🤖 Generate AI Analysis", type="primary", use_container_width=True):
+                with st.spinner("Generating AI analysis..."):
                     result = call_backend_api(request_data_base)
                     if result:
-                        st.success("✅ Analysis complete!")
+                        st.success("✅ AI analysis complete!")
                         st.session_state.ai_analysis = result.get("ai_analysis")
                         st.session_state.metrics = result.get("metrics")
 

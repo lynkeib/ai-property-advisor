@@ -74,7 +74,6 @@ Local URL: http://localhost:8501
    - HOA: $250/month
    - Property Tax: 1.5% annual
    - Insurance: $150/month
-   - Rent Estimate: $2,500/month
 3. Click "Analyze Property"
 4. View metrics and AI analysis
 
@@ -97,8 +96,7 @@ curl -X POST http://localhost:8000/api/analyze \
     "interest_rate": 6.5,
     "hoa": 250,
     "property_tax_rate": 0.015,
-    "insurance": 150,
-    "rent_estimate": 2500
+    "insurance": 150
   }'
 ```
 

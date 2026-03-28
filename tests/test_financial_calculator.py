@@ -37,28 +37,18 @@ class TestFinancialCalculator:
             hoa=250,
             property_tax_rate=0.015,
             insurance=150,
-            rent_estimate=2500
         )
         
         assert metrics.loan_amount == 400000
         assert metrics.monthly_mortgage_payment > 0
-        assert metrics.monthly_principal_payment > 0
-        assert metrics.monthly_interest_payment > 0
         assert metrics.monthly_property_tax == pytest.approx(625, rel=0.01)
         assert metrics.monthly_total_cost > 0
-        assert metrics.monthly_cash_outflow > 0
-        assert metrics.total_principal_paid_10_years > 0
-        assert metrics.total_interest_paid_10_years > 0
-        assert metrics.total_cost_10_years == pytest.approx(
-            metrics.monthly_cash_outflow * 120, rel=0.01
-        )
-        assert metrics.buy_vs_rent_delta == pytest.approx(
-            metrics.total_rent_10_years - metrics.total_cost_10_years,
-            rel=0.01
-        )
+        assert metrics.total_principal_30_years == 400000
+        assert metrics.total_interest_30_years > 0
+        assert metrics.total_cost_30_years_excluding_principal > 0
     
-    def test_metrics_10_year_projection(self):
-        """Test 10-year cost projections."""
+    def test_metrics_30_year_totals(self):
+        """Test 30-year principal and interest totals."""
         metrics = FinancialCalculator.calculate_metrics(
             price=300000,
             down_payment=60000,
@@ -66,29 +56,18 @@ class TestFinancialCalculator:
             hoa=100,
             property_tax_rate=0.01,
             insurance=100,
-            rent_estimate=1500
         )
         
-        # Verify 10-year calculations
-        assert metrics.total_cost_10_years == pytest.approx(
-            metrics.monthly_cash_outflow * 120, rel=0.01
+        # Verify 30-year calculations
+        assert metrics.total_principal_30_years == pytest.approx(240000, rel=0.01)
+        assert metrics.total_interest_30_years == pytest.approx(
+            (metrics.monthly_mortgage_payment * 360) - metrics.loan_amount,
+            rel=0.01,
         )
-        assert metrics.total_rent_10_years == pytest.approx(1500 * 120, rel=0.01)
-    
-    def test_buy_vs_rent_comparison(self):
-        """Test buy vs rent delta calculation."""
-        metrics = FinancialCalculator.calculate_metrics(
-            price=400000,
-            down_payment=80000,
-            interest_rate=6.0,
-            hoa=200,
-            property_tax_rate=0.015,
-            insurance=125,
-            rent_estimate=2500
+        assert metrics.total_cost_30_years_excluding_principal == pytest.approx(
+            metrics.total_interest_30_years + ((metrics.monthly_property_tax + 100 + 100) * 360),
+            rel=0.01,
         )
-        
-        expected_delta = metrics.total_rent_10_years - metrics.total_cost_10_years
-        assert metrics.buy_vs_rent_delta == pytest.approx(expected_delta, rel=0.01)
 
 
 if __name__ == "__main__":
