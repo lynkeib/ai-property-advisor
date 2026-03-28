@@ -1,13 +1,17 @@
 """Streamlit frontend for property-copilot."""
 
 import logging
+import calendar
 from datetime import date
 import pandas as pd
 import requests
 import streamlit as st
 from typing import Optional
 
-import plotly.graph_objects as go
+try:
+    import plotly.graph_objects as go
+except Exception:
+    go = None
 
 # Configure page
 st.set_page_config(
@@ -205,6 +209,16 @@ def add_years(start_date: date, years: int) -> date:
         return start_date.replace(month=2, day=28, year=start_date.year + years)
 
 
+def add_months(start_date: date, months: int) -> date:
+    """Add months to a date while keeping day-in-month valid."""
+    month_index = (start_date.month - 1) + months
+    year = start_date.year + (month_index // 12)
+    month = (month_index % 12) + 1
+    last_day = calendar.monthrange(year, month)[1]
+    day = min(start_date.day, last_day)
+    return date(year, month, day)
+
+
 def build_amortization_schedule(
     loan_amount: float,
     annual_interest_rate: float,
@@ -260,7 +274,7 @@ def build_amortization_schedule(
 
 
 def display_amortization_summary(metrics: dict, loan_start_date: date, annual_interest_rate: float) -> None:
-    """Display amortization summary with interactive graph and as-of values."""
+    """Display amortization summary with monthly interactive chart."""
     payoff_date = add_years(loan_start_date, 30)
     total_cost_of_loan = metrics['total_principal_30_years'] + metrics['total_interest_30_years']
     schedule = build_amortization_schedule(
@@ -270,18 +284,17 @@ def display_amortization_summary(metrics: dict, loan_start_date: date, annual_in
         total_months=360,
     )
 
-    year_points = []
-    for year in range(0, 31):
-        month_idx = year * 12
-        point = schedule[month_idx]
-        year_points.append({
-            "Year": add_years(loan_start_date, year).strftime("%Y"),
+    monthly_points = []
+    for point in schedule:
+        month_idx = point["month"]
+        monthly_points.append({
+            "Date": add_months(loan_start_date, month_idx),
             "Principal paid": point["principal_paid"],
             "Interest paid": point["interest_paid"],
             "Loan balance": point["loan_balance"],
         })
 
-    chart_df = pd.DataFrame(year_points).set_index("Year")
+    chart_df = pd.DataFrame(monthly_points)
 
     st.markdown("### Amortization for Mortgage Loan")
     st.caption(
@@ -332,7 +345,7 @@ def display_amortization_summary(metrics: dict, loan_start_date: date, annual_in
             unsafe_allow_html=True,
         )
 
-    x_dates = [add_years(loan_start_date, year) for year in range(0, 31)]
+    x_dates = chart_df["Date"].tolist()
     principal_series = chart_df["Principal paid"].tolist()
     interest_series = chart_df["Interest paid"].tolist()
     balance_series = chart_df["Loan balance"].tolist()
