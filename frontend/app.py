@@ -32,6 +32,18 @@ API_ENDPOINT = f"{BACKEND_URL}/api/analyze"
 METRICS_ENDPOINT = f"{BACKEND_URL}/api/metrics"
 MODELS_ENDPOINT = f"{BACKEND_URL}/api/models"
 
+ANALYSIS_LANGUAGES = [
+    "English",
+    "Spanish",
+    "Chinese (Simplified)",
+    "Chinese (Traditional)",
+    "Japanese",
+    "Korean",
+    "French",
+    "German",
+    "Portuguese",
+]
+
 # Styling
 st.markdown("""
 <style>
@@ -172,6 +184,89 @@ def refresh_currency_field(field_name: str, default: float = 0.0) -> None:
     raw_value = st.session_state.get(field_name, "")
     parsed = parse_currency_input(raw_value, default=default)
     st.session_state[field_name] = format_currency(parsed)
+
+
+def get_query_param(params: dict, key: str, default: str) -> str:
+    """Get a single query param value from Streamlit's list-based API."""
+    values = params.get(key)
+    if not values:
+        return default
+    return values[0]
+
+
+def parse_query_float(params: dict, key: str, default: float) -> float:
+    """Parse a float query param with fallback to default."""
+    try:
+        return float(get_query_param(params, key, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def initialize_inputs_from_query_params(available_models: list[str]) -> None:
+    """Populate session state from URL query params on first load."""
+    params = st.experimental_get_query_params()
+
+    if "price_input" not in st.session_state:
+        raw_price = get_query_param(params, "price", "500000")
+        st.session_state.price_input = format_currency(parse_currency_input(raw_price, default=500000.0))
+    if "down_payment_input" not in st.session_state:
+        raw_down = get_query_param(params, "down_payment", "100000")
+        st.session_state.down_payment_input = format_currency(parse_currency_input(raw_down, default=100000.0))
+    if "hoa_input" not in st.session_state:
+        raw_hoa = get_query_param(params, "hoa", "250")
+        st.session_state.hoa_input = format_currency(parse_currency_input(raw_hoa, default=250.0))
+    if "insurance_input" not in st.session_state:
+        raw_insurance = get_query_param(params, "insurance", "150")
+        st.session_state.insurance_input = format_currency(parse_currency_input(raw_insurance, default=150.0))
+    if "zip_code_input" not in st.session_state:
+        st.session_state.zip_code_input = get_query_param(params, "zip_code", "94110")
+    if "interest_rate_input" not in st.session_state:
+        st.session_state.interest_rate_input = parse_query_float(params, "interest_rate", 6.5)
+    if "property_tax_rate_input" not in st.session_state:
+        st.session_state.property_tax_rate_input = parse_query_float(params, "property_tax_rate_pct", 1.5)
+
+    if "selected_model_input" not in st.session_state:
+        query_model = get_query_param(params, "model", available_models[0] if available_models else "")
+        st.session_state.selected_model_input = (
+            query_model if query_model in available_models else (available_models[0] if available_models else "")
+        )
+
+    if "selected_analysis_language_input" not in st.session_state:
+        query_lang = get_query_param(params, "analysis_language", ANALYSIS_LANGUAGES[0])
+        st.session_state.selected_analysis_language_input = (
+            query_lang if query_lang in ANALYSIS_LANGUAGES else ANALYSIS_LANGUAGES[0]
+        )
+
+    if "loan_start_date" not in st.session_state:
+        raw_date = get_query_param(params, "loan_start_date", date.today().isoformat())
+        try:
+            st.session_state.loan_start_date = date.fromisoformat(raw_date)
+        except ValueError:
+            st.session_state.loan_start_date = date.today()
+
+
+def persist_inputs_to_query_params() -> None:
+    """Persist user inputs into URL query params for refresh-safe state."""
+    new_params = {
+        "price": f"{parse_currency_input(st.session_state.get('price_input', ''), 500000.0):.2f}",
+        "down_payment": f"{parse_currency_input(st.session_state.get('down_payment_input', ''), 100000.0):.2f}",
+        "zip_code": st.session_state.get("zip_code_input", "94110").strip(),
+        "interest_rate": f"{float(st.session_state.get('interest_rate_input', 6.5)):.4f}",
+        "hoa": f"{parse_currency_input(st.session_state.get('hoa_input', ''), 250.0):.2f}",
+        "property_tax_rate_pct": f"{float(st.session_state.get('property_tax_rate_input', 1.5)):.4f}",
+        "insurance": f"{parse_currency_input(st.session_state.get('insurance_input', ''), 150.0):.2f}",
+        "model": st.session_state.get("selected_model_input", ""),
+        "analysis_language": st.session_state.get("selected_analysis_language_input", ANALYSIS_LANGUAGES[0]),
+        "loan_start_date": st.session_state.get("loan_start_date", date.today()).isoformat(),
+    }
+
+    current_params = st.experimental_get_query_params()
+    normalized_current_params = {
+        key: get_query_param(current_params, key, "") for key in new_params
+    }
+
+    if normalized_current_params != new_params:
+        st.experimental_set_query_params(**new_params)
 
 
 def display_metrics(metrics: dict) -> None:
@@ -427,17 +522,7 @@ def main():
         available_models = ["gemini-1.5-flash", "gemini-1.5-pro"]
     
     # Sidebar for inputs
-    # Initialize session state to avoid widget key-value conflict warnings
-    if "price_input" not in st.session_state:
-        st.session_state.price_input = format_currency(500000.0)
-    if "down_payment_input" not in st.session_state:
-        st.session_state.down_payment_input = format_currency(100000.0)
-    if "hoa_input" not in st.session_state:
-        st.session_state.hoa_input = format_currency(250.0)
-    if "insurance_input" not in st.session_state:
-        st.session_state.insurance_input = format_currency(150.0)
-    if "zip_code_input" not in st.session_state:
-        st.session_state.zip_code_input = "94110"
+    initialize_inputs_from_query_params(available_models)
 
     with st.sidebar:
         st.header("Property Details")
@@ -470,9 +555,9 @@ def main():
             "Interest Rate (%)",
             min_value=0.0,
             max_value=15.0,
-            value=6.5,
             step=0.01,
-            format="%.2f"
+            format="%.2f",
+            key="interest_rate_input",
         )
         
         st.markdown("---")
@@ -490,9 +575,9 @@ def main():
             "Property Tax Rate (annual %)",
             min_value=0.0,
             max_value=10.0,
-            value=1.5,
             step=0.01,
-            format="%.2f"
+            format="%.2f",
+            key="property_tax_rate_input",
         )
         property_tax_rate = property_tax_rate_pct / 100
         
@@ -511,22 +596,14 @@ def main():
             "AI Model",
             options=available_models,
             index=0 if available_models else 0,
+            key="selected_model_input",
             help="Choose the AI model for property analysis"
         )
         selected_analysis_language = st.selectbox(
             "Analysis Language",
-            options=[
-                "English",
-                "Spanish",
-                "Chinese (Simplified)",
-                "Chinese (Traditional)",
-                "Japanese",
-                "Korean",
-                "French",
-                "German",
-                "Portuguese",
-            ],
+            options=ANALYSIS_LANGUAGES,
             index=0,
+            key="selected_analysis_language_input",
             help="Choose the language for AI analysis output",
         )
 
@@ -590,6 +667,8 @@ def main():
                 display_amortization_summary(metrics_result, loan_start_date, interest_rate)
             else:
                 st.warning("⚠️ Amortization summary is unavailable until metrics can be calculated.")
+
+    persist_inputs_to_query_params()
 
     # Footer
     st.markdown("---")
