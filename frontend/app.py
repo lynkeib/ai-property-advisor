@@ -1,13 +1,17 @@
 """Streamlit frontend for property-copilot."""
 
 import logging
+import calendar
 from datetime import date
 import pandas as pd
 import requests
 import streamlit as st
 from typing import Optional
 
-import plotly.graph_objects as go
+try:
+    import plotly.graph_objects as go
+except Exception:
+    go = None
 
 # Configure page
 st.set_page_config(
@@ -35,6 +39,26 @@ st.markdown("""
         padding: 20px;
         border-radius: 5px;
         margin: 10px 0;
+    }
+    .amort-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin: 6px 0;
+    }
+    .amort-card-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-bottom: 6px;
+    }
+    .amort-card-value {
+        font-size: clamp(1.4rem, 2.6vw, 2rem);
+        font-weight: 700;
+        line-height: 1.15;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -148,19 +172,30 @@ def refresh_currency_field(field_name: str, default: float = 0.0) -> None:
 
 def display_metrics(metrics: dict) -> None:
     """Display financial metrics in a formatted way."""
+
+    def render_value_card(label: str, value: str) -> None:
+        st.markdown(
+            f"""
+            <div class="amort-card">
+                <div class="amort-card-label">{label}</div>
+                <div class="amort-card-value">{value}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.metric("Loan Amount", format_currency(metrics['loan_amount']))
-        st.metric("Monthly Mortgage", format_currency(metrics['monthly_mortgage_payment']))
-        st.metric("Monthly Property Tax", format_currency(metrics['monthly_property_tax']))
-        st.metric("Total Monthly Cost", format_currency(metrics['monthly_total_cost']))
+        render_value_card("Loan Amount", format_currency(metrics['loan_amount']))
+        render_value_card("Monthly Mortgage", format_currency(metrics['monthly_mortgage_payment']))
+        render_value_card("Monthly Property Tax", format_currency(metrics['monthly_property_tax']))
+        render_value_card("Total Monthly Cost", format_currency(metrics['monthly_total_cost']))
     
     with col2:
-        st.metric("30-Year Principal", format_currency(metrics['total_principal_30_years']))
-        st.metric("30-Year Interest", format_currency(metrics['total_interest_30_years']))
-        st.metric(
+        render_value_card("30-Year Principal", format_currency(metrics['total_principal_30_years']))
+        render_value_card("30-Year Interest", format_currency(metrics['total_interest_30_years']))
+        render_value_card(
             "30-Year Total Cost (excl. principal)",
             format_currency(metrics['total_cost_30_years_excluding_principal'])
         )
@@ -172,6 +207,16 @@ def add_years(start_date: date, years: int) -> date:
         return start_date.replace(year=start_date.year + years)
     except ValueError:
         return start_date.replace(month=2, day=28, year=start_date.year + years)
+
+
+def add_months(start_date: date, months: int) -> date:
+    """Add months to a date while keeping day-in-month valid."""
+    month_index = (start_date.month - 1) + months
+    year = start_date.year + (month_index // 12)
+    month = (month_index % 12) + 1
+    last_day = calendar.monthrange(year, month)[1]
+    day = min(start_date.day, last_day)
+    return date(year, month, day)
 
 
 def build_amortization_schedule(
@@ -229,7 +274,7 @@ def build_amortization_schedule(
 
 
 def display_amortization_summary(metrics: dict, loan_start_date: date, annual_interest_rate: float) -> None:
-    """Display amortization summary with interactive graph and as-of values."""
+    """Display amortization summary with monthly interactive chart."""
     payoff_date = add_years(loan_start_date, 30)
     total_cost_of_loan = metrics['total_principal_30_years'] + metrics['total_interest_30_years']
     schedule = build_amortization_schedule(
@@ -239,35 +284,68 @@ def display_amortization_summary(metrics: dict, loan_start_date: date, annual_in
         total_months=360,
     )
 
-    year_points = []
-    for year in range(0, 31):
-        month_idx = year * 12
-        point = schedule[month_idx]
-        year_points.append({
-            "Year": add_years(loan_start_date, year).strftime("%Y"),
+    monthly_points = []
+    for point in schedule:
+        month_idx = point["month"]
+        monthly_points.append({
+            "Date": add_months(loan_start_date, month_idx),
             "Principal paid": point["principal_paid"],
             "Interest paid": point["interest_paid"],
             "Loan balance": point["loan_balance"],
         })
 
-    chart_df = pd.DataFrame(year_points).set_index("Year")
+    chart_df = pd.DataFrame(monthly_points)
 
     st.markdown("### Amortization for Mortgage Loan")
     st.caption(
         "Interactive chart: hover to inspect values, zoom/pan to explore, and toggle lines in legend."
     )
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Loan amount", format_currency(metrics['loan_amount']))
-    with col2:
-        st.metric("Total interest paid", format_currency(metrics['total_interest_30_years']))
-    with col3:
-        st.metric("Total cost of loan", format_currency(total_cost_of_loan))
-    with col4:
-        st.metric("Payoff date", payoff_date.strftime("%b %Y"))
+    top_row_col1, top_row_col2 = st.columns(2)
+    with top_row_col1:
+        st.markdown(
+            f"""
+            <div class="amort-card">
+                <div class="amort-card-label">Loan amount</div>
+                <div class="amort-card-value">{format_currency(metrics['loan_amount'])}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with top_row_col2:
+        st.markdown(
+            f"""
+            <div class="amort-card">
+                <div class="amort-card-label">Total interest paid</div>
+                <div class="amort-card-value">{format_currency(metrics['total_interest_30_years'])}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    x_dates = [add_years(loan_start_date, year) for year in range(0, 31)]
+    bottom_row_col1, bottom_row_col2 = st.columns(2)
+    with bottom_row_col1:
+        st.markdown(
+            f"""
+            <div class="amort-card">
+                <div class="amort-card-label">Total cost of loan</div>
+                <div class="amort-card-value">{format_currency(total_cost_of_loan)}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with bottom_row_col2:
+        st.markdown(
+            f"""
+            <div class="amort-card">
+                <div class="amort-card-label">Payoff date</div>
+                <div class="amort-card-value">{payoff_date.strftime('%b %Y')}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    x_dates = chart_df["Date"].tolist()
     principal_series = chart_df["Principal paid"].tolist()
     interest_series = chart_df["Interest paid"].tolist()
     balance_series = chart_df["Loan balance"].tolist()
