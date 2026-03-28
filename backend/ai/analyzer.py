@@ -4,7 +4,7 @@ import logging
 import os
 from typing import Optional
 
-import google.generativeai as genai
+import google.generativeai as genai  # type: ignore
 
 from backend.models.schemas import FinancialMetrics
 
@@ -150,7 +150,7 @@ Property Details:
 - Estimated Monthly Rent: ${rent_estimate:,.2f}
 
 10-Year Financial Projections:
-- Total Cost of Buying: ${total_buy:,.2f}
+- Total Cash Outflow of Buying (interest + taxes + HOA + insurance, excluding principal equity buildup): ${total_buy:,.2f}
 - Total Cost of Renting: ${total_rent:,.2f}
 - Buy vs Rent Savings/Loss: ${buy_rent_delta:,.2f}
 {break_even_info}

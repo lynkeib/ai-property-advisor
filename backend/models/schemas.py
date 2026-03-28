@@ -35,12 +35,17 @@ class FinancialMetrics(BaseModel):
     
     loan_amount: float
     monthly_mortgage_payment: float
+    monthly_principal_payment: float
+    monthly_interest_payment: float
     monthly_property_tax: float
     monthly_total_cost: float
+    monthly_cash_outflow: float
     total_cost_10_years: float
     total_rent_10_years: float
     buy_vs_rent_delta: float
     break_even_months: float | None
+    total_principal_paid_10_years: float
+    total_interest_paid_10_years: float
 
 
 class AnalysisResponse(BaseModel):
