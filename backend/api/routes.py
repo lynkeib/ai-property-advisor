@@ -46,7 +46,6 @@ async def analyze_property(request: AnalysisRequest) -> AnalysisResponse:
             hoa=request.hoa,
             property_tax_rate=request.property_tax_rate,
             insurance=request.insurance,
-            rent_estimate=request.rent_estimate
         )
         
         # Generate AI analysis
@@ -55,7 +54,6 @@ async def analyze_property(request: AnalysisRequest) -> AnalysisResponse:
         ai_analysis = analyzer.analyze(
             metrics=metrics,
             price=request.price,
-            rent_estimate=request.rent_estimate,
             model=request.model
         )
         
@@ -85,7 +83,6 @@ async def calculate_metrics(request: AnalysisRequest) -> FinancialMetrics:
         hoa=request.hoa,
         property_tax_rate=request.property_tax_rate,
         insurance=request.insurance,
-        rent_estimate=request.rent_estimate,
     )
     return metrics
 

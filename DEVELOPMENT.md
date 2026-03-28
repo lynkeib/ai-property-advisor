@@ -15,7 +15,7 @@ FastAPI Router (api/routes.py)
        ↓
     Services Layer
     ├─ Financial Calculator (deterministic math)
-    └─ PropertyAnalyzer (OpenAI integration)
+    └─ GeminiAnalyzer (Google Gemini integration)
        ↓
     Data Models (Pydantic schemas)
 ```
@@ -39,10 +39,10 @@ Key methods:
 
 ### 2. Property Analyzer (`backend/ai/analyzer.py`)
 
-**Responsibility**: OpenAI API integration
+**Responsibility**: Google Gemini API integration
 
 Key methods:
-- `analyze()`: Calls OpenAI gpt-3.5-turbo with financial metrics
+- `analyze()`: Calls Gemini with financial metrics
 - `_build_prompt()`: Constructs analysis prompt from metrics
 
 **Design notes**:
@@ -100,9 +100,11 @@ Key features:
 
 In `backend/ai/analyzer.py`:
 ```python
-response = openai.ChatCompletion.create(
-    model="gpt-4",  # Change here
-    # ... rest of config
+analysis = self.generate(
+   prompt=prompt,
+   model="gemini-1.5-pro",  # Change here
+   max_tokens=8192,
+   temperature=0.7,
 )
 ```
 
@@ -185,7 +187,7 @@ st.json(dict_variable)
 ## Environment Variables
 
 Required:
-- `OPENAI_API_KEY`: Your OpenAI API key
+- `GEMINI_API_KEY`: Your Google Gemini API key
 
 Optional:
 - `BACKEND_HOST`: Backend host (default: 127.0.0.1)
@@ -214,7 +216,7 @@ docker run -p 8501:8501 property-copilot
 ## Performance Considerations
 
 1. **Financial calculations**: O(1) complexity - instant
-2. **AI analysis**: 1-2 seconds for OpenAI API call
+2. **AI analysis**: network-bound latency for Gemini API call
 3. **Frontend**: Async API calls prevent UI blocking
 
 ## Security

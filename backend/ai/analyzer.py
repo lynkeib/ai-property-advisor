@@ -106,7 +106,6 @@ class GeminiAnalyzer:
         self,
         metrics: FinancialMetrics,
         price: float,
-        rent_estimate: float,
         model: str = "gemini-1.5-flash"
     ) -> str:
         """
@@ -115,7 +114,7 @@ class GeminiAnalyzer:
         Returns investment summary, key risks, and recommendation.
         """
 
-        prompt = self._build_prompt(metrics, price, rent_estimate)
+        prompt = self._build_prompt(metrics, price)
 
         try:
             analysis = self.generate(
@@ -135,7 +134,6 @@ class GeminiAnalyzer:
     def _build_prompt(
         metrics: FinancialMetrics,
         price: float,
-        rent_estimate: float
     ) -> str:
         """Build the prompt for Gemini analysis."""
 
@@ -147,13 +145,11 @@ Property Details:
 - Monthly Property Tax: ${monthly_tax:,.2f}
 - Monthly HOA/Insurance: ${monthly_hoa:,.2f}
 - Total Monthly Ownership Cost: ${monthly_total:,.2f}
-- Estimated Monthly Rent: ${rent_estimate:,.2f}
 
-10-Year Financial Projections:
-- Total Cash Outflow of Buying (interest + taxes + HOA + insurance, excluding principal equity buildup): ${total_buy:,.2f}
-- Total Cost of Renting: ${total_rent:,.2f}
-- Buy vs Rent Savings/Loss: ${buy_rent_delta:,.2f}
-{break_even_info}
+30-Year Financial Projections:
+- Total Principal Paid (30 years): ${total_principal:,.2f}
+- Total Interest Paid (30 years): ${total_interest:,.2f}
+- Total Ownership Cost Excluding Principal (30 years): ${total_cost_excl_principal:,.2f}
 
 Please provide a detailed analysis covering:
 
@@ -162,11 +158,9 @@ Please provide a detailed analysis covering:
 3. **Market Considerations**: Current market conditions and property appreciation potential
 4. **Risk Assessment**: Key risks including interest rate changes, market fluctuations, and property-specific concerns
 5. **Tax Implications**: Potential tax benefits and deductions
-6. **Recommendation**: Clear buy/rent/hold recommendation with reasoning
+6. **Recommendation**: Clear investment recommendation with reasoning
 
 IMPORTANT: Provide a COMPLETE and COMPREHENSIVE analysis. Do not truncate your response - ensure all sections are fully detailed with specific numbers and complete explanations. Take your time to provide thorough insights."""
-
-        break_even_info = f"- Break-even Period: {metrics.break_even_months:.1f} months" if metrics.break_even_months else "- Break-even: Rent appears cheaper long-term"
 
         return prompt.format(
             price=price,
@@ -174,9 +168,7 @@ IMPORTANT: Provide a COMPLETE and COMPREHENSIVE analysis. Do not truncate your r
             monthly_tax=metrics.monthly_property_tax,
             monthly_hoa=metrics.monthly_total_cost - metrics.monthly_mortgage_payment - metrics.monthly_property_tax,
             monthly_total=metrics.monthly_total_cost,
-            rent_estimate=rent_estimate,
-            total_buy=metrics.total_cost_10_years,
-            total_rent=metrics.total_rent_10_years,
-            buy_rent_delta=metrics.buy_vs_rent_delta,
-            break_even_info=break_even_info
+            total_principal=metrics.total_principal_30_years,
+            total_interest=metrics.total_interest_30_years,
+            total_cost_excl_principal=metrics.total_cost_30_years_excluding_principal,
         )

@@ -16,14 +16,14 @@ Property Copilot combines **deterministic financial calculations** with **AI-gen
 - Monthly mortgage payment (30-year amortization)
 - Monthly property tax, insurance, HOA
 - Total monthly cost
-- 10-year projections
-- Buy vs rent comparison
-- Break-even analysis
+- 30-year principal total
+- 30-year interest total
+- 30-year ownership cost excluding principal
 
 ### AI Analysis
 - Investment summary
 - Key risks assessment
-- Buy/rent/neutral recommendation
+- Investment recommendation
 - Based on calculated metrics
 
 ## Project Structure
@@ -123,8 +123,7 @@ curl -X POST http://localhost:8000/api/analyze \
     "interest_rate": 6.5,
     "hoa": 250,
     "property_tax_rate": 0.015,
-    "insurance": 150,
-    "rent_estimate": 2500
+    "insurance": 150
   }'
 ```
 
@@ -136,10 +135,9 @@ curl -X POST http://localhost:8000/api/analyze \
     "monthly_mortgage_payment": 2398.20,
     "monthly_property_tax": 625.0,
     "monthly_total_cost": 3423.20,
-    "total_cost_10_years": 410784.0,
-    "total_rent_10_years": 300000.0,
-    "buy_vs_rent_delta": -110784.0,
-    "break_even_months": null
+    "total_principal_30_years": 400000.0,
+    "total_interest_30_years": 463352.0,
+    "total_cost_30_years_excluding_principal": 832352.0
   },
   "ai_analysis": "Investment Summary: This property is financially attractive for long-term ownership...\n\nKey Risks:\n- Interest rate sensitivity...\n- Market volatility...\n\nRecommendation: BUY"
 }
