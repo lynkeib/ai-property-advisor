@@ -146,7 +146,9 @@ class GeminiAnalyzer:
     ) -> str:
         """Build the prompt for Gemini analysis."""
 
-        prompt = """Based on these real estate investment metrics, provide a comprehensive analysis of this property investment opportunity:
+        prompt = """
+
+Based on these real estate investment metrics, provide a comprehensive analysis of this property investment opportunity:
 
 Property Details:
 - Property Price: ${price:,.0f}
@@ -171,7 +173,9 @@ Please provide a detailed analysis covering:
 5. **Tax Implications**: Potential tax benefits and deductions
 6. **Recommendation**: Clear investment recommendation with reasoning
 
-IMPORTANT: Provide a COMPLETE and COMPREHENSIVE analysis. Do not truncate your response - ensure all sections are fully detailed with specific numbers and complete explanations. Take your time to provide thorough insights. Write the entire response in {analysis_language}."""
+IMPORTANT: Provide a COMPLETE and COMPREHENSIVE analysis. Do not truncate your response - ensure all sections are fully detailed with specific numbers and complete explanations. Take your time to provide thorough insights. Write the entire response in {analysis_language}.
+
+"""
 
         return prompt.format(
             price=price,
