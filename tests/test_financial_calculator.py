@@ -42,10 +42,19 @@ class TestFinancialCalculator:
         
         assert metrics.loan_amount == 400000
         assert metrics.monthly_mortgage_payment > 0
+        assert metrics.monthly_principal_payment > 0
+        assert metrics.monthly_interest_payment > 0
         assert metrics.monthly_property_tax == pytest.approx(625, rel=0.01)
         assert metrics.monthly_total_cost > 0
+        assert metrics.monthly_cash_outflow > 0
+        assert metrics.total_principal_paid_10_years > 0
+        assert metrics.total_interest_paid_10_years > 0
         assert metrics.total_cost_10_years == pytest.approx(
-            metrics.monthly_total_cost * 120, rel=0.01
+            metrics.monthly_cash_outflow * 120, rel=0.01
+        )
+        assert metrics.buy_vs_rent_delta == pytest.approx(
+            metrics.total_rent_10_years - metrics.total_cost_10_years,
+            rel=0.01
         )
     
     def test_metrics_10_year_projection(self):
@@ -62,7 +71,7 @@ class TestFinancialCalculator:
         
         # Verify 10-year calculations
         assert metrics.total_cost_10_years == pytest.approx(
-            metrics.monthly_total_cost * 120, rel=0.01
+            metrics.monthly_cash_outflow * 120, rel=0.01
         )
         assert metrics.total_rent_10_years == pytest.approx(1500 * 120, rel=0.01)
     

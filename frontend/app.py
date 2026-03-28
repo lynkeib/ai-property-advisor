@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Backend API configuration
 BACKEND_URL = "http://localhost:8000"
 API_ENDPOINT = f"{BACKEND_URL}/api/analyze"
+METRICS_ENDPOINT = f"{BACKEND_URL}/api/metrics"
 MODELS_ENDPOINT = f"{BACKEND_URL}/api/models"
 
 # Styling
@@ -56,10 +57,10 @@ def validate_inputs(
 
 
 def call_backend_api(data: dict) -> Optional[dict]:
-    """Call backend API and return response."""
+    """Call backend analyze API and return response."""
     
     try:
-        response = requests.post(API_ENDPOINT, json=data, timeout=30)
+        response = requests.post(API_ENDPOINT, json=data, timeout=60)
         if response.status_code != 200:
             detail = ""
             try:
@@ -76,6 +77,28 @@ def call_backend_api(data: dict) -> Optional[dict]:
         return None
     except requests.exceptions.RequestException as e:
         st.error(f"❌ API error: {str(e)}")
+        return None
+
+
+def call_metrics_api(data: dict) -> Optional[dict]:
+    """Call backend metrics API and return response."""
+    try:
+        response = requests.post(METRICS_ENDPOINT, json=data, timeout=30)
+        if response.status_code != 200:
+            detail = ""
+            try:
+                detail = response.json()
+            except Exception:
+                detail = response.text
+            st.error(f"❌ Metrics API error {response.status_code}: {detail}")
+            return None
+        return response.json()
+    except requests.exceptions.ConnectionError:
+        st.error(f"❌ Cannot connect to backend at {BACKEND_URL}")
+        st.info("Make sure the backend is running: `python -m uvicorn backend.main:app --reload`")
+        return None
+    except requests.exceptions.RequestException as e:
+        st.error(f"❌ Metrics API error: {str(e)}")
         return None
 
 
@@ -134,9 +157,11 @@ def display_metrics(metrics: dict) -> None:
         st.metric("Total Monthly Cost", format_currency(metrics['monthly_total_cost']))
     
     with col2:
-        st.metric("10-Year Buy Cost", format_currency(metrics['total_cost_10_years']))
+        st.metric("10-Year Cost (excl. principal)", format_currency(metrics['total_cost_10_years']))
         st.metric("10-Year Rent Cost", format_currency(metrics['total_rent_10_years']))
         st.metric("Buy vs Rent (10yr)", format_currency(metrics['buy_vs_rent_delta']))
+        st.metric("Total Principal Paid (10yr)", format_currency(metrics.get('total_principal_paid_10_years', 0)))
+        st.metric("Total Interest Paid (10yr)", format_currency(metrics.get('total_interest_paid_10_years', 0)))
         
         break_even = metrics.get('break_even_months')
         if break_even:
@@ -208,7 +233,7 @@ def main():
         st.subheader("Monthly Costs")
         
         st.text_input(
-            "HOA Fees ($)",
+            "HOA Fees ($/month)",
             key="hoa_input",
             on_change=refresh_currency_field,
             args=("hoa_input", 250.0),
@@ -226,7 +251,7 @@ def main():
         property_tax_rate = property_tax_rate_pct / 100
         
         st.text_input(
-            "Home Insurance ($)",
+            "Home Insurance ($/month)",
             key="insurance_input",
             on_change=refresh_currency_field,
             args=("insurance_input", 150.0),
@@ -259,43 +284,48 @@ def main():
     
     # Validate and analyze
     error = validate_inputs(price, down_payment, interest_rate, rent_estimate)
-    
+
     if error:
         st.error(f"⚠️ {error}")
     else:
+        request_data_base = {
+            "price": price,
+            "down_payment": down_payment,
+            "interest_rate": interest_rate,
+            "hoa": hoa,
+            "property_tax_rate": property_tax_rate,
+            "insurance": insurance,
+            "rent_estimate": rent_estimate,
+            "model": selected_model
+        }
+
+        # Show financial metrics immediately (no AI needed)
+        metrics_result = call_metrics_api(request_data_base)
+        if metrics_result:
+            st.markdown("## 📈 Financial Metrics")
+            display_metrics(metrics_result)
+        else:
+            st.warning("⚠️ Could not calculate metrics yet. Check your input or backend availability.")
+
+        if "ai_analysis" not in st.session_state:
+            st.session_state.ai_analysis = None
+
         col_analyze, col_clear = st.columns([4, 1])
-        
+
         with col_analyze:
             if st.button("📊 Analyze Property", type="primary", use_container_width=True):
                 with st.spinner("Analyzing property..."):
-                    
-                    request_data = {
-                        "price": price,
-                        "down_payment": down_payment,
-                        "interest_rate": interest_rate,
-                        "hoa": hoa,
-                        "property_tax_rate": property_tax_rate,
-                        "insurance": insurance,
-                        "rent_estimate": rent_estimate,
-                        "model": selected_model
-                    }
-                    
-                    result = call_backend_api(request_data)
-                    
+                    result = call_backend_api(request_data_base)
                     if result:
                         st.success("✅ Analysis complete!")
-                        
-                        # Display metrics section
-                        st.markdown("## 📈 Financial Metrics")
-                        display_metrics(result["metrics"])
-                        
-                        # Display AI analysis section
-                        st.markdown("## 🤖 AI Investment Analysis")
-                        st.markdown(result["ai_analysis"])
-                        
-                        # Store in session state for reference
-                        st.session_state.last_analysis = result
-    
+                        st.session_state.ai_analysis = result.get("ai_analysis")
+                        st.session_state.metrics = result.get("metrics")
+
+        # Show AI analysis after user clicks Analyze
+        if st.session_state.ai_analysis:
+            st.markdown("## 🤖 AI Investment Analysis")
+            st.markdown(st.session_state.ai_analysis)
+
     # Footer
     st.markdown("---")
     st.markdown(

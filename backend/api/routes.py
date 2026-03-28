@@ -7,6 +7,7 @@ from backend.models.schemas import (
     AnalysisRequest,
     AnalysisResponse,
     ModelsResponse,
+    FinancialMetrics,
 )
 from backend.services.financial_calculator import FinancialCalculator
 from backend.ai.analyzer import GeminiAnalyzer
@@ -69,6 +70,24 @@ async def analyze_property(request: AnalysisRequest) -> AnalysisResponse:
     except Exception as e:
         logger.error(f"Analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
+
+
+@router.post("/metrics", response_model=FinancialMetrics)
+async def calculate_metrics(request: AnalysisRequest) -> FinancialMetrics:
+    """Calculate deterministic financial metrics without AI analysis."""
+    if request.down_payment > request.price:
+        raise HTTPException(status_code=400, detail="Down payment cannot exceed property price")
+
+    metrics = FinancialCalculator.calculate_metrics(
+        price=request.price,
+        down_payment=request.down_payment,
+        interest_rate=request.interest_rate,
+        hoa=request.hoa,
+        property_tax_rate=request.property_tax_rate,
+        insurance=request.insurance,
+        rent_estimate=request.rent_estimate,
+    )
+    return metrics
 
 
 @router.get("/health")
