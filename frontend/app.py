@@ -1,9 +1,13 @@
 """Streamlit frontend for property-copilot."""
 
 import logging
+from datetime import date
+import pandas as pd
 import requests
 import streamlit as st
 from typing import Optional
+
+import plotly.graph_objects as go
 
 # Configure page
 st.set_page_config(
@@ -162,6 +166,168 @@ def display_metrics(metrics: dict) -> None:
         )
 
 
+def add_years(start_date: date, years: int) -> date:
+    """Add years to a date while handling leap-year edge cases."""
+    try:
+        return start_date.replace(year=start_date.year + years)
+    except ValueError:
+        return start_date.replace(month=2, day=28, year=start_date.year + years)
+
+
+def build_amortization_schedule(
+    loan_amount: float,
+    annual_interest_rate: float,
+    monthly_payment: float,
+    total_months: int = 360,
+) -> list[dict]:
+    """Build cumulative amortization values for each month."""
+    monthly_rate = annual_interest_rate / 100 / 12
+    balance = loan_amount
+    cumulative_principal = 0.0
+    cumulative_interest = 0.0
+
+    schedule = [{
+        "month": 0,
+        "principal_paid": 0.0,
+        "interest_paid": 0.0,
+        "loan_balance": round(balance, 2),
+    }]
+
+    for month in range(1, total_months + 1):
+        if balance <= 0:
+            schedule.append({
+                "month": month,
+                "principal_paid": round(cumulative_principal, 2),
+                "interest_paid": round(cumulative_interest, 2),
+                "loan_balance": 0.0,
+            })
+            continue
+
+        if monthly_rate == 0:
+            interest_payment = 0.0
+            principal_payment = min(balance, monthly_payment)
+        else:
+            interest_payment = round(balance * monthly_rate, 2)
+            principal_payment = round(monthly_payment - interest_payment, 2)
+            if principal_payment > balance:
+                principal_payment = balance
+            if principal_payment < 0:
+                principal_payment = 0.0
+
+        balance = max(0.0, round(balance - principal_payment, 2))
+        cumulative_principal = round(cumulative_principal + principal_payment, 2)
+        cumulative_interest = round(cumulative_interest + interest_payment, 2)
+
+        schedule.append({
+            "month": month,
+            "principal_paid": cumulative_principal,
+            "interest_paid": cumulative_interest,
+            "loan_balance": balance,
+        })
+
+    return schedule
+
+
+def display_amortization_summary(metrics: dict, loan_start_date: date, annual_interest_rate: float) -> None:
+    """Display amortization summary with interactive graph and as-of values."""
+    payoff_date = add_years(loan_start_date, 30)
+    total_cost_of_loan = metrics['total_principal_30_years'] + metrics['total_interest_30_years']
+    schedule = build_amortization_schedule(
+        loan_amount=metrics['loan_amount'],
+        annual_interest_rate=annual_interest_rate,
+        monthly_payment=metrics['monthly_mortgage_payment'],
+        total_months=360,
+    )
+
+    year_points = []
+    for year in range(0, 31):
+        month_idx = year * 12
+        point = schedule[month_idx]
+        year_points.append({
+            "Year": add_years(loan_start_date, year).strftime("%Y"),
+            "Principal paid": point["principal_paid"],
+            "Interest paid": point["interest_paid"],
+            "Loan balance": point["loan_balance"],
+        })
+
+    chart_df = pd.DataFrame(year_points).set_index("Year")
+
+    st.markdown("### Amortization for Mortgage Loan")
+    st.caption(
+        "Interactive chart: hover to inspect values, zoom/pan to explore, and toggle lines in legend."
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Loan amount", format_currency(metrics['loan_amount']))
+    with col2:
+        st.metric("Total interest paid", format_currency(metrics['total_interest_30_years']))
+    with col3:
+        st.metric("Total cost of loan", format_currency(total_cost_of_loan))
+    with col4:
+        st.metric("Payoff date", payoff_date.strftime("%b %Y"))
+
+    x_dates = [add_years(loan_start_date, year) for year in range(0, 31)]
+    principal_series = chart_df["Principal paid"].tolist()
+    interest_series = chart_df["Interest paid"].tolist()
+    balance_series = chart_df["Loan balance"].tolist()
+
+    if go is None:
+        st.warning(
+            "Interactive chart requires plotly. Install with: python -m pip install plotly==5.24.1"
+        )
+        st.line_chart(chart_df, height=420)
+        return
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=x_dates,
+            y=principal_series,
+            mode="lines",
+            name="Principal paid",
+            line=dict(color="#4c9aff", width=3),
+            hovertemplate="%{x|%b %Y}<br>Principal paid: $%{y:,.2f}<extra></extra>",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x_dates,
+            y=interest_series,
+            mode="lines",
+            name="Interest paid",
+            line=dict(color="#67c587", width=3),
+            hovertemplate="%{x|%b %Y}<br>Interest paid: $%{y:,.2f}<extra></extra>",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x_dates,
+            y=balance_series,
+            mode="lines",
+            name="Loan balance",
+            line=dict(color="#1545a6", width=3),
+            hovertemplate="%{x|%b %Y}<br>Loan balance: $%{y:,.2f}<extra></extra>",
+        )
+    )
+
+    fig.update_layout(
+        height=420,
+        margin=dict(l=10, r=10, t=10, b=10),
+        hovermode="x unified",
+        xaxis_title="Year",
+        yaxis_title="Amount (USD)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+    )
+    fig.update_yaxes(tickprefix="$", separatethousands=True)
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        config={"displayModeBar": True, "scrollZoom": True},
+    )
+
+
 def main():
     """Main Streamlit application."""
     
@@ -280,30 +446,42 @@ def main():
 
         # Show financial metrics immediately (no AI needed)
         metrics_result = call_metrics_api(request_data_base)
-        if metrics_result:
-            st.markdown("## 📈 Financial Metrics")
-            display_metrics(metrics_result)
-        else:
-            st.warning("⚠️ Could not calculate metrics yet. Check your input or backend availability.")
 
         if "ai_analysis" not in st.session_state:
             st.session_state.ai_analysis = None
 
-        col_analyze, col_clear = st.columns([4, 1])
+        payment_tab, amortization_tab = st.tabs(["Payment breakdown", "Amortization"])
 
-        with col_analyze:
-            if st.button("🤖 Generate AI Analysis", type="primary", use_container_width=True):
-                with st.spinner("Generating AI analysis..."):
-                    result = call_backend_api(request_data_base)
-                    if result:
-                        st.success("✅ AI analysis complete!")
-                        st.session_state.ai_analysis = result.get("ai_analysis")
-                        st.session_state.metrics = result.get("metrics")
+        with payment_tab:
+            if metrics_result:
+                st.markdown("## 📈 Financial Metrics")
+                display_metrics(metrics_result)
+            else:
+                st.warning("⚠️ Could not calculate metrics yet. Check your input or backend availability.")
 
-        # Show AI analysis after user clicks Analyze
-        if st.session_state.ai_analysis:
-            st.markdown("## 🤖 AI Investment Analysis")
-            st.markdown(st.session_state.ai_analysis)
+            col_analyze, col_clear = st.columns([4, 1])
+
+            with col_analyze:
+                if st.button("🤖 Generate AI Analysis", type="primary", use_container_width=True):
+                    with st.spinner("Generating AI analysis..."):
+                        result = call_backend_api(request_data_base)
+                        if result:
+                            st.success("✅ AI analysis complete!")
+                            st.session_state.ai_analysis = result.get("ai_analysis")
+                            st.session_state.metrics = result.get("metrics")
+
+            # Show AI analysis after user clicks Analyze
+            if st.session_state.ai_analysis:
+                st.markdown("## 🤖 AI Investment Analysis")
+                st.markdown(st.session_state.ai_analysis)
+
+        with amortization_tab:
+            st.markdown("## 🧮 Amortization")
+            loan_start_date = st.date_input("Loan start date", value=date.today(), key="loan_start_date")
+            if metrics_result:
+                display_amortization_summary(metrics_result, loan_start_date, interest_rate)
+            else:
+                st.warning("⚠️ Amortization summary is unavailable until metrics can be calculated.")
 
     # Footer
     st.markdown("---")
