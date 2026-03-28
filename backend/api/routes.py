@@ -21,22 +21,22 @@ router = APIRouter(prefix="/api", tags=["analysis"])
 async def analyze_property(request: AnalysisRequest) -> AnalysisResponse:
     """
     Analyze a property investment and return financial metrics + AI insights.
-    
+
     Args:
         request: Property data including price, down payment, rates, etc.
-    
+
     Returns:
         AnalysisResponse with calculated metrics and AI analysis
-    
+
     Raises:
         HTTPException: If down payment exceeds price or API fails
     """
-    
+
     try:
         # Input validation
         if request.down_payment > request.price:
             raise ValueError("Down payment cannot exceed property price")
-        
+
         # Calculate financial metrics (deterministic)
         logger.info(f"Calculating metrics for property: ${request.price:,.0f}")
         metrics = FinancialCalculator.calculate_metrics(
@@ -47,7 +47,7 @@ async def analyze_property(request: AnalysisRequest) -> AnalysisResponse:
             property_tax_rate=request.property_tax_rate,
             insurance=request.insurance,
         )
-        
+
         # Generate AI analysis
         logger.info("Requesting AI analysis from Gemini")
         analyzer = GeminiAnalyzer()
@@ -58,25 +58,26 @@ async def analyze_property(request: AnalysisRequest) -> AnalysisResponse:
             model=request.model,
             analysis_language=request.analysis_language,
         )
-        
-        return AnalysisResponse(
-            metrics=metrics,
-            ai_analysis=ai_analysis
-        )
-    
+
+        return AnalysisResponse(metrics=metrics, ai_analysis=ai_analysis)
+
     except ValueError as e:
         logger.warning(f"Validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Analysis failed: {str(e)}")
-        raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
+        raise HTTPException(
+            status_code=500, detail="Analysis failed. Please try again."
+        )
 
 
 @router.post("/metrics", response_model=FinancialMetrics)
 async def calculate_metrics(request: AnalysisRequest) -> FinancialMetrics:
     """Calculate deterministic financial metrics without AI analysis."""
     if request.down_payment > request.price:
-        raise HTTPException(status_code=400, detail="Down payment cannot exceed property price")
+        raise HTTPException(
+            status_code=400, detail="Down payment cannot exceed property price"
+        )
 
     metrics = FinancialCalculator.calculate_metrics(
         price=request.price,
@@ -104,10 +105,12 @@ async def list_available_models() -> ModelsResponse:
         models_data = analyzer.list_available_models()
 
         return ModelsResponse(
-            generate_content_models=models_data['generate_content_models'],
-            embed_content_models=models_data['embed_content_models']
+            generate_content_models=models_data["generate_content_models"],
+            embed_content_models=models_data["embed_content_models"],
         )
 
     except Exception as e:
         logger.error(f"Failed to list models: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to list models. Please try again.")
+        raise HTTPException(
+            status_code=500, detail="Failed to list models. Please try again."
+        )
