@@ -36,35 +36,41 @@ class GeminiAnalyzer:
                 model_name = model.name
 
                 # Check model capabilities
-                if hasattr(model, 'supported_generation_methods'):
+                if hasattr(model, "supported_generation_methods"):
                     methods = model.supported_generation_methods
                 else:
                     # Try to infer from model name and common patterns
                     methods = []
-                    if 'gemini' in model_name.lower():
-                        methods.append('generateContent')
-                    if any(embed_model in model_name.lower() for embed_model in ['embedding', 'embed']):
-                        methods.append('embedContent')
+                    if "gemini" in model_name.lower():
+                        methods.append("generateContent")
+                    if any(
+                        embed_model in model_name.lower()
+                        for embed_model in ["embedding", "embed"]
+                    ):
+                        methods.append("embedContent")
 
                 # Check for generateContent capability
-                if 'generateContent' in methods or 'generate_content' in str(model).lower():
+                if (
+                    "generateContent" in methods
+                    or "generate_content" in str(model).lower()
+                ):
                     generate_content_models.append(model_name)
 
                 # Check for embedContent capability
-                if 'embedContent' in methods or 'embed_content' in str(model).lower():
+                if "embedContent" in methods or "embed_content" in str(model).lower():
                     embed_content_models.append(model_name)
 
             return {
-                'generate_content_models': generate_content_models,
-                'embed_content_models': embed_content_models
+                "generate_content_models": generate_content_models,
+                "embed_content_models": embed_content_models,
             }
 
         except Exception as e:
             logger.error(f"Error listing models: {e}")
             # Return default models if API fails
             return {
-                'generate_content_models': ["gemini-1.5-flash", "gemini-1.5-pro"],
-                'embed_content_models': ["text-embedding-004"]
+                "generate_content_models": ["gemini-1.5-flash", "gemini-1.5-pro"],
+                "embed_content_models": ["text-embedding-004"],
             }
 
     def generate(
@@ -86,8 +92,7 @@ class GeminiAnalyzer:
             )
 
             model_instance = genai.GenerativeModel(
-                model_name=model,
-                generation_config=generation_config
+                model_name=model, generation_config=generation_config
             )
 
             response = model_instance.generate_content(prompt)
@@ -174,7 +179,9 @@ IMPORTANT: Provide a COMPLETE and COMPREHENSIVE analysis. Do not truncate your r
             analysis_language=analysis_language,
             monthly_mortgage=metrics.monthly_mortgage_payment,
             monthly_tax=metrics.monthly_property_tax,
-            monthly_hoa=metrics.monthly_total_cost - metrics.monthly_mortgage_payment - metrics.monthly_property_tax,
+            monthly_hoa=metrics.monthly_total_cost
+            - metrics.monthly_mortgage_payment
+            - metrics.monthly_property_tax,
             monthly_total=metrics.monthly_total_cost,
             total_principal=metrics.total_principal_30_years,
             total_interest=metrics.total_interest_30_years,
